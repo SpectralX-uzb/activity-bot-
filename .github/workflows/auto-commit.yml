@@ -1,0 +1,38 @@
+name: Auto Commit
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # каждые 30 минут (скрипт сам решает, нужен ли коммит)
+  workflow_dispatch:          # ручной запуск для теста
+    inputs:
+      force:
+        description: "Принудительный коммит (для теста)"
+        default: "0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-commit
+  cancel-in-progress: false
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Настроить git
+        run: |
+          git config user.name  "${{ github.repository_owner }}"
+          git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
+
+      - name: Выполнить скрипт
+        env:
+          FORCE: ${{ github.event.inputs.force }}
+        run: python3 scripts/auto_commit.py
+
+      - name: Отправить изменения
+        run: |
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push
